@@ -2,14 +2,13 @@
 coreos:
   units:
   - name: cleanup.service
-    runtime: yes
     content: |
       [Service]
       Type=oneshot
       TimeoutStartSec=1800
       ExecStart=/usr/bin/docker run --volume=/var/run/docker.sock:/var/run/docker.sock --volume=/var/lib/docker:/var/lib/docker --rm --net=none --env=DELAY_TIME=900 --env=LOOP=false meltwater/docker-cleanup:1.6.0
   - name: cleanup.timer
-    runtime: yes
+    enable: yes
     command: start
     content: |
       [Unit]

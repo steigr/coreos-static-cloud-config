@@ -10,7 +10,6 @@ coreos:
       After=network-online.target
       [Service]
       Type=oneshot
-      ConditionFirstBoot=yes
       Environment=ETCD_RELEASE=v3.0.0-beta.0
       Environment=UPGRADE_PKG=
       ExecStart=/usr/bin/bash -xc '\
@@ -23,14 +22,9 @@ coreos:
         mv "$temp"/etcd "$temp"/etcdctl /opt/bin;\
         rm -rf "$temp"'
   - name: etcd2.service
-    command: start
-    runtime: yes
     drop-ins:
     - name: 10-etcd3.conf
       content: |
-        [Unit]
-        Requires=upgrade-to-etcd3.service
-        After=upgrade-to-etcd3.service
         [Service]
         ExecStart=
         ExecStart=/opt/bin/etcd

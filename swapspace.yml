@@ -6,11 +6,11 @@ coreos:
     enable: yes
     content: |
       [Service]
-      ExecStartPre=/usr/bin/mkdir -p /opt/bin /var/lib/swapspace
-      ExecStartPre=/usr/bin/fallocate -l 1m /var/lib/swapspace/base.swap
-      ExecStartPre=/usr/sbin/mkswap /var/lib/swapspace/base.swap
-      ExecStartPre=/usr/sbin/swapon /var/lib/swapspace/base.swap
-      ExecStartPre=/usr/bin/bash -c 'curl -sL https://github.com/mathias-kaufmann/swapspace/releases/download/1.10/swapspace | install -m 0744 /dev/stdin /opt/bin/swapspace'
+      ExecStartPre=-/usr/bin/mkdir -p /opt/bin /var/lib/swapspace
+      ExecStartPre=-/usr/bin/fallocate -l 1m /var/lib/swapspace/base.swap
+      ExecStartPre=-/usr/sbin/mkswap /var/lib/swapspace/base.swap
+      ExecStartPre=-/usr/sbin/swapon /var/lib/swapspace/base.swap
+      ExecStartPre=/usr/bin/bash -c 'test -s  /opt/bin/swapspace || curl -sL https://github.com/mathias-kaufmann/swapspace/releases/download/1.10/swapspace | install -m 0744 /dev/stdin /opt/bin/swapspace'
       ExecStart=/opt/bin/swapspace
       [Install]
       WantedBy=default.target

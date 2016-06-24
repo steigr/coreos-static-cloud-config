@@ -1,0 +1,157 @@
+#cloud-config
+write_files:
+- path: /opt/bin/ceph-disk
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon ceph-disk "$@"
+- path: /opt/bin/ceph
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon ceph "$@"
+- path: /opt/bin/ceph-rest-api
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon ceph-rest-api "$@"
+- path: /opt/bin/ceph-authtool
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon ceph-authtool "$@"
+- path: /opt/bin/ceph-clsinfo
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon ceph-clsinfo "$@"
+- path: /opt/bin/ceph-conf
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon ceph-conf "$@"
+- path: /opt/bin/ceph-debugpack
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon ceph-debugpack "$@"
+- path: /opt/bin/ceph-dencoder
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon ceph-dencoder "$@"
+- path: /opt/bin/ceph-mon
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon ceph-mon "$@"
+- path: /opt/bin/ceph-osd
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon ceph-osd "$@"
+- path: /opt/bin/ceph-run
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon ceph-run "$@"
+- path: /opt/bin/ceph-syn
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon ceph-syn "$@"
+- path: /opt/bin/crushtool
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon crushtool "$@"
+- path: /opt/bin/monmaptool
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon monmaptool "$@"
+- path: /opt/bin/osdmaptool
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon osdmaptool "$@"
+- path: /opt/bin/rados
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-mon rados "$@"
+coreos:
+  units:
+  - name: ceph.target
+    enable: yes
+    command: start
+    content: |
+      [Install]
+      WantedBy=default.target
+  - name: ceph-pull-image.service
+    enable: yes
+    content: |
+      [Unit]
+      Requires=docker.socket network-online.target
+      After=docker.socket network-online.target
+      [Install]
+      WantedBy=ceph.target
+      [Service]
+      Type=oneshot
+      TimeoutStartSec=300s
+      RemainAfterExit=yes
+      ExecStart=/usr/bin/docker pull ceph/daemon
+  - name: ceph-node.service
+    enable: yes
+    content: |
+      [Unit]
+      Requires=etcd2.service ceph-pull-image.service
+      Requires=etcd2.service ceph-pull-image.service
+      [Service]
+      Restart=always
+      RestartSec=15s
+      TimeoutStartSec=300s
+      Environment=name=%p
+      ExecStartPre=-/usr/bin/docker pull google/pause
+      ExecStartPre=-/usr/bin/docker rm -f ${name}
+      ExecStart=/usr/bin/docker run --rm --name=${name} --volume=/etc/ceph:/etc/ceph --volume=/var/lib/ceph:/var/lib/ceph --volume=/dev:/dev google/pause
+      ExecStartPost=/usr/bin/bash -c 'sleep 2; echo /etc/ceph /var/lib/ceph | xargs -r -n1 -t /usr/bin/chcon -Rt svirt_sandbox_file_t'
+      [Install]
+      WantedBy=ceph.target
+  - name: ceph-mon.service
+    enable: yes
+    content: |
+      [Unit]
+      Requires=ceph-node.service ceph-pull-image.service
+      After=ceph-node.service ceph-pull-image.service
+      [Service]
+      Restart=always
+      RestartSec=15s
+      Environment=name=%p
+      ExecStartPre=-/usr/bin/docker rm -f ${name}
+      ExecStartPre=-/usr/bin/docker run --net=container:ceph-node --rm --env=KV_IP=$private_ipv4 --env=KV_PORT=2379 --env=KV_TYPE=etcd ceph/daemon populate_kvstore
+      ExecStart=/usr/bin/bash -c 'ip=$(docker inspect --format="{{.NetworkSettings.IPAddress}}" ceph-node);\
+           exec /usr/bin/docker run --name=${name} --rm --net=container:ceph-node --env=KV_TYPE=etcd --env=KV_PORT=2379 --env=KV_IP=$private_ipv4 --volumes-from=ceph-node --env=CEPH_PUBLIC_NETWORK=10.2.0.0/16 --env=MON_IP=$ip --env=MON_NAME=%H ceph/daemon mon'
+      [Install]
+      WantedBy=ceph.target
+  - name: ceph-osd@.service
+    enable: yes
+    content: |
+      [Unit]
+      Requires=ceph-node.service ceph-pull-image.service
+      After=ceph-node.service ceph-pull-image.service
+      [Service]
+      Restart=always
+      RestartSec=15s
+      TimeoutStartSec=300s
+      Environment=name=%p-%i
+      ExecStartPre=-/usr/bin/docker rm -f ${name}
+      ExecStart=/usr/bin/docker run --name=${name} --rm  --net=container:ceph-node --env=KV_TYPE=etcd --env=KV_PORT=2379 --env=KV_IP=$private_ipv4 --volumes-from=ceph-node --env=OSD_DEVICE=%I --env=OSD_TYPE=disk --privileged=true ceph/daemon osd
+  - name: ceph-osd.service
+    enable: yes
+    content: |
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/bash -c 'lsblk --json | jq -r ".blockdevices | map( select(.name != \\"sda\\") | \\"/dev/\\" + .name) | join (\\"\\n\\")" | xargs -n1 -I{} -r -t systemctl start ceph-osd@{}.service'
+      [Install]
+      WantedBy=ceph.target

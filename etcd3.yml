@@ -1,0 +1,36 @@
+#cloud-config
+coreos:
+  units:
+  - name: upgrade-to-etcd3.service
+    runtime: yes
+    command: start
+    content: |
+      [Unit]
+      Requires=network-online.target
+      After=network-online.target
+      [Service]
+      Type=oneshot
+      ConditionFirstBoot=yes
+      Environment=ETCD_RELEASE=v3.0.0-beta.0
+      Environment=UPGRADE_PKG=
+      ExecStart=/usr/bin/bash -xc '\
+        [[ -f /opt/bin/etcdctl ]] && [[ -f /opt/bin/etcd ]] && exit 0;\
+        set -eo pipefail;\
+        temp=$(mktemp -d);\
+        curl -sL https://github.com/coreos/etcd/releases/download/${ETCD_RELEASE}/etcd-${ETCD_RELEASE}-linux-amd64.tar.gz \
+        | tar -z -x -C "$temp" --strip-components=1;\
+        mkdir -p /opt/bin;\
+        mv "$temp"/etcd "$temp"/etcdctl /opt/bin;\
+        rm -rf "$temp"'
+  - name: etcd2.service
+    command: start
+    runtime: yes
+    drop-ins:
+    - name: 10-etcd3.conf
+      content: |
+        [Unit]
+        Requires=upgrade-to-etcd3.service
+        After=upgrade-to-etcd3.service
+        [Service]
+        ExecStart=
+        ExecStart=/opt/bin/etcd

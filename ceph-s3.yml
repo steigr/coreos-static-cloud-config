@@ -1,0 +1,71 @@
+#cloud-config
+write_files:
+- path: /opt/bin/radosgw-admin
+  permissions: 0755
+  content: |
+    #!/usr/bin/env bash
+    docker exec -ti ceph-rgw radosgw-admin "$@"
+coreos:
+  units:
+  - name: ceph.target
+    enable: yes
+    command: start
+    content: |
+      [Install]
+      WantedBy=default.target
+  - name: ceph-pull-image.service
+    enable: yes
+    content: |
+      [Unit]
+      Requires=docker.socket network-online.target
+      After=docker.socket network-online.target
+      [Install]
+      WantedBy=ceph.target
+      [Service]
+      Type=oneshot
+      TimeoutStartSec=300s
+      RemainAfterExit=yes
+      ExecStart=/usr/bin/docker pull ceph/daemon
+  - name: ceph-node.service
+    enable: yes
+    content: |
+      [Unit]
+      Requires=etcd2.service ceph-pull-image.service
+      Requires=etcd2.service ceph-pull-image.service
+      [Service]
+      Restart=always
+      RestartSec=15s
+      TimeoutStartSec=300s
+      Environment=name=%p
+      ExecStartPre=-/usr/bin/docker pull google/pause
+      ExecStartPre=-/usr/bin/docker rm -f ${name}
+      ExecStart=/usr/bin/docker run --rm --name=${name} --volume=/etc/ceph:/etc/ceph --volume=/var/lib/ceph:/var/lib/ceph --volume=/dev:/dev google/pause
+      ExecStartPost=/usr/bin/bash -c 'sleep 2; echo /etc/ceph /var/lib/ceph | xargs -r -n1 -t /usr/bin/chcon -Rt svirt_sandbox_file_t'
+      [Install]
+      WantedBy=ceph.target
+  - name: ceph-rgw.service
+    command: start
+    runtime: yes
+    content: |
+      [Unit]
+      Requires=ceph-node.service ceph-pull-image.service
+      After=ceph-node.service ceph-pull-image.service
+      [Service]
+      Restart=always
+      RestartSec=15s
+      Environment=name=%p
+      Environment=image=ceph/daemon
+      ExecStartPre=-/usr/bin/docker rm -f ${name}
+      ExecStartPre=-/usr/bin/docker run --net=container:ceph-node --rm --env=KV_IP=$COREOS_PRIVATE_IPV4 --env=KV_PORT=2379 --env=KV_TYPE=etcd ceph/daemon populate_kvstore
+      ExecStart=/usr/bin/docker run --name=${name} --rm --net=container:ceph-node --env=KV_TYPE=etcd --env=KV_PORT=2379 --env=KV_IP=$COREOS_PRIVATE_IPV4 --volumes-from=ceph-node --env=RGW_REMOTE_CGI=1 --env=RGW_REMOTE_CGI_HOST=127.0.0.1 --env=RGW_REMOTE_CGI_PORT=9000 --env=RGW_NAME ceph/daemon rgw
+      ExecStop=/usr/bin/docker stop %p
+  - name: ceph-s3.service
+    command: restart
+    runtime: yes
+    content: |
+      [Service]
+      Environment=name=%p
+      Environment=image=joshix/caddy
+      ExecStartPre=/usr/bin/docker run --volume=/s3 --detach --name=${name}-config alpine sh -c 'printf "http://:80\\nfastcgi / 127.0.0.1:9000\\n" > /s3/Caddyfile'
+      ExecStart=/usr/bin/docker run --rm --name=${name} --volumes-from=${name}-config --net=container:ceph-node --workdir=/s3 ${image}
+      ExecReload=/usr/bin/docker exec ${name} caddy -restart inproc

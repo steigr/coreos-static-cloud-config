@@ -129,9 +129,9 @@ coreos:
       RestartSec=15s
       Environment=name=%p
       ExecStartPre=-/usr/bin/docker rm -f ${name}
-      ExecStartPre=-/usr/bin/docker run --net=container:ceph-node --rm --env=KV_IP=$private_ipv4 --env=KV_PORT=2379 --env=KV_TYPE=etcd ceph/daemon populate_kvstore
+      ExecStartPre=-/usr/bin/docker run --net=container:ceph-node --rm --env=KV_IP=$COREOS_PRIVATE_IPV4 --env=KV_PORT=2379 --env=KV_TYPE=etcd ceph/daemon populate_kvstore
       ExecStart=/usr/bin/bash -c 'ip=$(docker inspect --format="{{.NetworkSettings.IPAddress}}" ceph-node);\
-           exec /usr/bin/docker run --name=${name} --rm --net=container:ceph-node --env=KV_TYPE=etcd --env=KV_PORT=2379 --env=KV_IP=$private_ipv4 --volumes-from=ceph-node --env=CEPH_PUBLIC_NETWORK=10.2.0.0/16 --env=MON_IP=$ip --env=MON_NAME=%H ceph/daemon mon'
+           exec /usr/bin/docker run --name=${name} --rm --net=container:ceph-node --env=KV_TYPE=etcd --env=KV_PORT=2379 --env=KV_IP=$COREOS_PRIVATE_IPV4 --volumes-from=ceph-node --env=CEPH_PUBLIC_NETWORK=10.2.0.0/16 --env=MON_IP=$ip --env=MON_NAME=%H ceph/daemon mon'
       [Install]
       WantedBy=ceph.target
   - name: ceph-osd@.service
@@ -146,7 +146,7 @@ coreos:
       TimeoutStartSec=300s
       Environment=name=%p-%i
       ExecStartPre=-/usr/bin/docker rm -f ${name}
-      ExecStart=/usr/bin/docker run --name=${name} --rm  --net=container:ceph-node --env=KV_TYPE=etcd --env=KV_PORT=2379 --env=KV_IP=$private_ipv4 --volumes-from=ceph-node --env=OSD_DEVICE=%I --env=OSD_TYPE=disk --privileged=true ceph/daemon osd
+      ExecStart=/usr/bin/docker run --name=${name} --rm  --net=container:ceph-node --env=KV_TYPE=etcd --env=KV_PORT=2379 --env=KV_IP=$COREOS_PRIVATE_IPV4 --volumes-from=ceph-node --env=OSD_DEVICE=%I --env=OSD_TYPE=disk --privileged=true ceph/daemon osd
   - name: ceph-osd.service
     enable: yes
     content: |

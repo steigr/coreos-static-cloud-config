@@ -11,17 +11,12 @@ coreos:
       [Service]
       Type=oneshot
       Environment=ETCD_RELEASE=v3.0.0-beta.0
-      Environment=UPGRADE_PKG=
-      ExecStart=/usr/bin/bash -xc '\
-        [[ -f /opt/bin/etcdctl ]] && [[ -f /opt/bin/etcd ]] && exit 0;\
-        set -eo pipefail;\
-        temp=$(mktemp -d);\
-        curl -sL https://github.com/coreos/etcd/releases/download/${ETCD_RELEASE}/etcd-${ETCD_RELEASE}-linux-amd64.tar.gz \
-        | tar -z -x -C "$temp" --strip-components=1;\
-        mkdir -p /opt/bin;\
-        install -m 0755 -o root -g root "$temp"/etcd /opt/bin/etcd; \
-        install -m 0755 -o root -g root "$temp"/etcdctl /opt/bin/etcdctl; \
-        rm -rf "$temp"'
+      ExecStart=/usr/bin/curl --retry-max-time 300 --retry-delay 10 --location --output /tmp/etcd-${ETCD_RELEASE}-linux-amd64.tar.gz https://github.com/coreos/etcd/releases/download/${ETCD_RELEASE}/etcd-${ETCD_RELEASE}-linux-amd64.tar.gz 
+      ExecStart=/usr/bin/tar -f /tmp/etcd-${ETCD_RELEASE}-linux-amd64.tar.gz -x -C /tmp
+      ExecStart=/usr/bin/install -d -m 0777 /opt /opt/bin
+      ExecStart=/usr/bin/install -m 0754 -o etcd -g etcd /tmp/etcd-${ETCD_RELEASE}-linux-amd64/etcd /opt/bin/etcd
+      ExecStart=/usr/bin/install -m 0755 -o etcd -g etcd /tmp/etcd-${ETCD_RELEASE}-linux-amd64/etcdctl /opt/bin/etcdctl
+      ExecStart=/usr/bin/rm -rf /tmp/etcd-${ETCD_RELEASE}-linux-amd64.tar.gz /tmp/etcd-${ETCD_RELEASE}-linux-amd64
   - name: etcd2.service
     drop-ins:
     - name: 10-etcd3.conf

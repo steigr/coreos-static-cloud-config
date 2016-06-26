@@ -19,7 +19,8 @@ coreos:
         curl -sL https://github.com/coreos/etcd/releases/download/${ETCD_RELEASE}/etcd-${ETCD_RELEASE}-linux-amd64.tar.gz \
         | tar -z -x -C "$temp" --strip-components=1;\
         mkdir -p /opt/bin;\
-        mv "$temp"/etcd "$temp"/etcdctl /opt/bin;\
+        install -m 0755 -o root -g root "$temp"/etcd /opt/bin/etcd; \
+        install -m 0755 -o root -g root "$temp"/etcdctl /opt/bin/etcdctl; \
         rm -rf "$temp"'
   - name: etcd2.service
     drop-ins:

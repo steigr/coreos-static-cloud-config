@@ -8,7 +8,7 @@ coreos:
       [Service]
       ExecStartPre=-/usr/bin/mkdir -p /opt/bin /var/lib/swapspace
       ExecStartPre=-/usr/sbin/swapoff /var/lib/swapspace/base.swap
-      ExecStartPre=-/usr/bin/fallocate -l 1m /var/lib/swapspace/base.swap
+      ExecStartPre=-/usr/bin/dd if=/dev/zero of=/var/lib/swapspace/base.swap bs=1M count=1
       ExecStartPre=-/usr/bin/chmod 0600 /var/lib/swapspace/base.swap
       ExecStartPre=-/usr/sbin/mkswap /var/lib/swapspace/base.swap
       ExecStartPre=-/usr/sbin/swapon /var/lib/swapspace/base.swap

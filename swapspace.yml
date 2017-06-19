@@ -6,13 +6,13 @@ coreos:
     enable: yes
     content: |
       [Service]
-      ExecStartPre=-/usr/bin/mkdir -p /opt/bin /var/lib/swapspace
-      ExecStartPre=-/usr/sbin/swapoff /var/lib/swapspace/base.swap
-      ExecStartPre=-/usr/bin/dd if=/dev/zero of=/var/lib/swapspace/base.swap bs=1M count=1
-      ExecStartPre=-/usr/bin/chmod 0600 /var/lib/swapspace/base.swap
-      ExecStartPre=-/usr/sbin/mkswap /var/lib/swapspace/base.swap
-      ExecStartPre=-/usr/sbin/swapon /var/lib/swapspace/base.swap
-      ExecStartPre=/usr/bin/bash -c 'test -s  /opt/bin/swapspace || curl -sL https://github.com/mathias-kaufmann/swapspace/releases/download/1.10/swapspace | install -m 0744 /dev/stdin /opt/bin/swapspace'
+      ExecStartPre=-/usr/bin/env mkdir -p /opt/bin /var/lib/swapspace
+      ExecStartPre=-/usr/bin/env swapoff /var/lib/swapspace/base.swap
+      ExecStartPre=-/usr/bin/env dd if=/dev/zero of=/var/lib/swapspace/base.swap bs=1M count=1
+      ExecStartPre=-/usr/bin/env chmod 0600 /var/lib/swapspace/base.swap
+      ExecStartPre=-/usr/bin/env mkswap /var/lib/swapspace/base.swap
+      ExecStartPre=-/usr/bin/env swapon /var/lib/swapspace/base.swap
+      ExecStartPre=/usr/bin/env bash -c 'test -s  /opt/bin/swapspace || curl -sL https://github.com/mathias-kaufmann/swapspace/releases/download/1.10/swapspace | install -m 0744 /dev/stdin /opt/bin/swapspace'
       ExecStart=/opt/bin/swapspace
       [Install]
       WantedBy=multi-user.target
